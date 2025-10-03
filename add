@@ -1,0 +1,18 @@
+from matplotlib.ticker import FuncFormatter
+import numpy as np
+
+# 1) format ax2 tick labels to 2 decimals
+ax2.yaxis.set_major_formatter(FuncFormatter(lambda y, _: f"{y:.2f}"))
+
+# 2) ensure 1.0 is within the limits
+ymin, ymax = ax2.get_ylim()
+if not (ymin <= 1.0 <= ymax):
+    pad = 0.05 * max(1e-9, (ymax - ymin))
+    ax2.set_ylim(min(ymin, 1.0 - pad), max(ymax, 1.0 + pad))
+
+# 3) ensure there's a tick at exactly 1.0
+ticks = list(ax2.get_yticks())
+if 1.0 not in np.round(ticks, 10):   # tolerate fp noise
+    ticks.append(1.0)
+    ticks = sorted(ticks)
+    ax2.set_yticks(ticks)
