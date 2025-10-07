@@ -3,6 +3,33 @@ Vb = b
 var_diff = np.var(Vb - Vp)                         # this is what you targeted
 # If you want to be strict about population vs sample, match whatever you used above.
 
+
+
+
+# Compute traces for normalization (rough proxy for total variance)
+trace_val = np.trace(Q_val)
+trace_pnl = np.trace(Q_pnl)
+
+# Avoid divide-by-zero in pathological cases
+if trace_val == 0 or trace_pnl == 0:
+    raise ValueError("One of the covariance matrices has zero trace; check inputs.")
+
+# Normalize each covariance block to unit average variance
+Q_val_norm = Q_val / trace_val
+c_val_norm = c_val / np.sqrt(trace_val)
+
+Q_pnl_norm = Q_pnl / trace_pnl
+c_pnl_norm = c_pnl / np.sqrt(trace_pnl)
+
+# Combine using lambda (now meaningfully weighted)
+λ = 0.3
+Q_mix = (1 - λ) * Q_pnl_norm + λ * Q_val_norm
+c_mix = (1 - λ) * c_pnl_norm + λ * c_val_norm
+
+objective = cp.Minimize(cp.quad_form(shares, cp.psd_wrap(Q_mix)) + c_mix @ shares)
+
+
+
 # --- Level variance components ---
 P  = df_prices.values.astype(float)
 b  = (basket_shares * basket_prices.flatten()).astype(float)
