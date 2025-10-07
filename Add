@@ -1,0 +1,32 @@
+Vp = P @ shares.value
+Vb = b
+var_diff = np.var(Vb - Vp)                         # this is what you targeted
+# If you want to be strict about population vs sample, match whatever you used above.
+
+# --- Level variance components ---
+P  = df_prices.values.astype(float)
+b  = (basket_shares * basket_prices.flatten()).astype(float)
+T  = float(P.shape[0])
+P0 = P - P.mean(axis=0, keepdims=True)
+b0 = b - b.mean()
+Q_val = (P0.T @ P0) / T
+c_val = -2 * (P0.T @ b0) / T
+const_val = (b0 @ b0) / T
+
+# --- PnL variance components ---
+lagged_prices = np.vstack([day1_prices.reshape(1, -1), P[:-1]])
+A = lagged_prices * df_returns.values
+b_pnl = basket_shares * np.concatenate([[basket_prices[0]], basket_prices[:-1]]) * basket_returns
+A0 = A - A.mean(axis=0, keepdims=True)
+b0_pnl = b_pnl - b_pnl.mean()
+Q_pnl = (A0.T @ A0) / T
+c_pnl = -2 * (A0.T @ b0_pnl) / T
+const_pnl = (b0_pnl @ b0_pnl) / T
+
+# --- Combine objectives ---
+λ = 0.3  # adjust tradeoff: 0=PnL-only, 1=Value-only
+Q_mix = (1-λ)*Q_pnl + λ*Q_val
+c_mix = (1-λ)*c_pnl + λ*c_val
+const_mix = (1-λ)*const_pnl + λ*const_val
+
+objective = cp.Minimize(cp.quad_form(shares, cp.psd_wrap(Q_mix)) + c_mix @ shares)
